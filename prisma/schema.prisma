@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model revisiones_sistema {
+  id              Int       @id @default(autoincrement())
+  ticket_id       Int?
+  resultado       String?   @db.VarChar(50)
+  mensaje_proceso String?
+  revisado_en     DateTime? @default(now()) @db.Timestamp(6)
+  tickets         tickets?  @relation(fields: [ticket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tickets {
+  id                 Int                  @id @default(autoincrement())
+  titulo             String               @db.VarChar(100)
+  descripcion        String?
+  estado             String?              @default("abierto") @db.VarChar(20)
+  fecha_creacion     DateTime?            @default(now()) @db.Timestamp(6)
+  revisiones_sistema revisiones_sistema[]
+}
