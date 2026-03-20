@@ -2,11 +2,11 @@ package com.example.ticket.dto;
 
 import com.example.ticket.model.TicketStatus;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Getter
+@Data
 @Builder
 public class TicketResponse {
 
@@ -16,4 +16,5 @@ public class TicketResponse {
     private TicketStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String message;
 }

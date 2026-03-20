@@ -2,49 +2,51 @@ package com.example.ticket.service.impl;
 
 import com.example.ticket.dto.TicketRequest;
 import com.example.ticket.dto.TicketResponse;
-import com.example.ticket.event.TicketCreatedEvent;
 import com.example.ticket.exception.TicketNotFoundException;
 import com.example.ticket.model.Ticket;
 import com.example.ticket.repository.TicketRepository;
 import com.example.ticket.service.TicketService;
+import com.example.ticket.service.resilience.ResilienceStrategy;
+import com.example.ticket.service.resilience.ResilienceStrategyFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Service
-@RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
 
     private final TicketRepository ticketRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final ResilienceStrategyFactory resilienceStrategyFactory;
+    private final ResilienceStrategy resilienceStrategy;
 
     @Override
     @Transactional
     public TicketResponse registerTicket(TicketRequest request) {
-        Ticket ticket = new Ticket();
-        ticket.setTitle(request.getTitle());
-        ticket.setDescription(request.getDescription());
+        return resilienceStrategy.execute(() -> {
+            Ticket ticket = new Ticket();
+            ticket.setTitle(request.getTitle());
+            ticket.setDescription(request.getDescription());
 
-        Ticket saved = ticketRepository.save(ticket);
-        log.info("Ticket registrado con ID: {}", saved.getId());
+            Ticket saved = ticketRepository.save(ticket);
+            log.info("Ticket registrado con ID: {}", saved.getId());
 
-        // Publicar evento para avisar al otro proceso
-        eventPublisher.publishEvent(new TicketCreatedEvent(this, saved.getId(), saved.getTitle()));
-
-        return toResponse(saved);
+            TicketResponse response = toResponse(saved);
+            response.setMessage("Correo de confirmación enviado exitosamente a su bandeja de entrada");
+            return response;
+        });
     }
 
     @Override
     @Transactional(readOnly = true)
     public TicketResponse getTicketStatus(Long id) {
-        Ticket ticket = ticketRepository.findById(id)
-                .orElseThrow(() -> new TicketNotFoundException(id));
-        return toResponse(ticket);
+        return resilienceStrategy.execute(() -> {
+            Ticket ticket = ticketRepository.findById(id)
+                    .orElseThrow(() -> new TicketNotFoundException(id));
+            return toResponse(ticket);
+        });
     }
 
     private TicketResponse toResponse(Ticket ticket) {
